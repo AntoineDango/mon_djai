@@ -28,9 +28,9 @@ interface SettingsViewProps {
   darkMode: boolean;
   setDarkMode: (val: boolean | ((prev: boolean) => boolean)) => void;
   onUpdateThreshold: (val: number) => Promise<void>;
-  onCreateCategory: (data: { name: string; color?: string; icon?: string }) => Promise<void>;
+  onCreateCategory: (data: { name: string; color?: string; icon?: string }) => Promise<ExpenseCategory | void>;
   onDeleteCategory: (id: number) => Promise<void>;
-  onCreateSource: (data: { name: string; color?: string }) => Promise<void>;
+  onCreateSource: (data: { name: string; color?: string }) => Promise<IncomeSource | void>;
   onDeleteSource: (id: number) => Promise<void>;
   onOpenExcelModal: () => void;
   onSeedDemoData: () => Promise<void>;

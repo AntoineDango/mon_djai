@@ -19,10 +19,38 @@ export function getAbidjanTime(): string {
   return d.toLocaleTimeString('fr-FR', { timeZone: 'Africa/Abidjan', hour: '2-digit', minute: '2-digit' });
 }
 
+const DEFAULT_CATEGORIES = [
+  { name: 'Transport', color: '#3b82f6', icon: 'car' },
+  { name: 'Nourriture', color: '#f59e0b', icon: 'utensils' },
+  { name: 'Imprévus', color: '#ef4444', icon: 'alert-triangle' },
+  { name: 'Famille', color: '#8b5cf6', icon: 'users' },
+  { name: 'Autres', color: '#64748b', icon: 'more-horizontal' },
+];
+
+const DEFAULT_SOURCES = [
+  { name: 'GLM', color: '#10b981' },
+  { name: 'SOLIDARITY PROJECT', color: '#06b6d4' },
+  { name: 'CIC (Stage)', color: '#6366f1' },
+  { name: 'Autres revenus', color: '#84cc16' },
+];
+
 // Service methods
 export async function getCategories(userId: string) {
   try {
-    return await db.select().from(expenseCategories).where(eq(expenseCategories.userId, userId));
+    let items = await db.select().from(expenseCategories).where(eq(expenseCategories.userId, userId));
+    if (items.length === 0) {
+      for (const cat of DEFAULT_CATEGORIES) {
+        await db.insert(expenseCategories).values({
+          userId,
+          name: cat.name,
+          color: cat.color,
+          icon: cat.icon,
+          isDefault: true,
+        });
+      }
+      items = await db.select().from(expenseCategories).where(eq(expenseCategories.userId, userId));
+    }
+    return items;
   } catch (error) {
     console.error('Error fetching categories:', error);
     throw new Error('Impossible de charger les catégories.', { cause: error });
@@ -57,7 +85,19 @@ export async function deleteCategory(userId: string, id: number) {
 
 export async function getSources(userId: string) {
   try {
-    return await db.select().from(incomeSources).where(eq(incomeSources.userId, userId));
+    let items = await db.select().from(incomeSources).where(eq(incomeSources.userId, userId));
+    if (items.length === 0) {
+      for (const src of DEFAULT_SOURCES) {
+        await db.insert(incomeSources).values({
+          userId,
+          name: src.name,
+          color: src.color,
+          isDefault: true,
+        });
+      }
+      items = await db.select().from(incomeSources).where(eq(incomeSources.userId, userId));
+    }
+    return items;
   } catch (error) {
     console.error('Error fetching sources:', error);
     throw new Error('Impossible de charger les sources de revenus.', { cause: error });
@@ -146,13 +186,23 @@ export async function getExpenses(userId: string, filters?: { startDate?: string
 
 export async function addExpense(userId: string, data: { amount: number; categoryId?: number; description?: string; transactionDate?: string; transactionTime?: string }) {
   try {
-    const date = data.transactionDate || getAbidjanDate();
-    const time = data.transactionTime || getAbidjanTime();
+    const date = data.transactionDate && data.transactionDate.trim() ? data.transactionDate : getAbidjanDate();
+    const time = data.transactionTime && data.transactionTime.trim() ? data.transactionTime : getAbidjanTime();
+
+    let validCategoryId: number | null = null;
+    if (data.categoryId) {
+      const catCheck = await db.select({ id: expenseCategories.id })
+        .from(expenseCategories)
+        .where(eq(expenseCategories.id, Number(data.categoryId)));
+      if (catCheck.length > 0) {
+        validCategoryId = catCheck[0].id;
+      }
+    }
 
     const inserted = await db.insert(expenses).values({
       userId,
       amount: Math.round(Number(data.amount)),
-      categoryId: data.categoryId || null,
+      categoryId: validCategoryId,
       description: data.description?.trim() || null,
       transactionDate: date,
       transactionTime: time,
@@ -167,12 +217,22 @@ export async function addExpense(userId: string, data: { amount: number; categor
 
 export async function updateExpense(userId: string, id: number, data: { amount: number; categoryId?: number; description?: string; transactionDate: string; transactionTime?: string }) {
   try {
+    let validCategoryId: number | null = null;
+    if (data.categoryId) {
+      const catCheck = await db.select({ id: expenseCategories.id })
+        .from(expenseCategories)
+        .where(eq(expenseCategories.id, Number(data.categoryId)));
+      if (catCheck.length > 0) {
+        validCategoryId = catCheck[0].id;
+      }
+    }
+
     const updated = await db.update(expenses)
       .set({
         amount: Math.round(Number(data.amount)),
-        categoryId: data.categoryId || null,
+        categoryId: validCategoryId,
         description: data.description?.trim() || null,
-        transactionDate: data.transactionDate,
+        transactionDate: data.transactionDate || getAbidjanDate(),
         transactionTime: data.transactionTime || getAbidjanTime(),
         updatedAt: new Date(),
       })
@@ -235,13 +295,23 @@ export async function getIncomes(userId: string, filters?: { startDate?: string;
 
 export async function addIncome(userId: string, data: { amount: number; sourceId?: number; description?: string; transactionDate?: string; transactionTime?: string }) {
   try {
-    const date = data.transactionDate || getAbidjanDate();
-    const time = data.transactionTime || getAbidjanTime();
+    const date = data.transactionDate && data.transactionDate.trim() ? data.transactionDate : getAbidjanDate();
+    const time = data.transactionTime && data.transactionTime.trim() ? data.transactionTime : getAbidjanTime();
+
+    let validSourceId: number | null = null;
+    if (data.sourceId) {
+      const srcCheck = await db.select({ id: incomeSources.id })
+        .from(incomeSources)
+        .where(eq(incomeSources.id, Number(data.sourceId)));
+      if (srcCheck.length > 0) {
+        validSourceId = srcCheck[0].id;
+      }
+    }
 
     const inserted = await db.insert(incomes).values({
       userId,
       amount: Math.round(Number(data.amount)),
-      sourceId: data.sourceId || null,
+      sourceId: validSourceId,
       description: data.description?.trim() || null,
       transactionDate: date,
       transactionTime: time,
@@ -256,12 +326,22 @@ export async function addIncome(userId: string, data: { amount: number; sourceId
 
 export async function updateIncome(userId: string, id: number, data: { amount: number; sourceId?: number; description?: string; transactionDate: string; transactionTime?: string }) {
   try {
+    let validSourceId: number | null = null;
+    if (data.sourceId) {
+      const srcCheck = await db.select({ id: incomeSources.id })
+        .from(incomeSources)
+        .where(eq(incomeSources.id, Number(data.sourceId)));
+      if (srcCheck.length > 0) {
+        validSourceId = srcCheck[0].id;
+      }
+    }
+
     const updated = await db.update(incomes)
       .set({
         amount: Math.round(Number(data.amount)),
-        sourceId: data.sourceId || null,
+        sourceId: validSourceId,
         description: data.description?.trim() || null,
-        transactionDate: data.transactionDate,
+        transactionDate: data.transactionDate || getAbidjanDate(),
         transactionTime: data.transactionTime || getAbidjanTime(),
         updatedAt: new Date(),
       })

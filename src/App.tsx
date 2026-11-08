@@ -179,9 +179,10 @@ function MainApp() {
 
   // Category & Source management
   const handleCreateCategory = async (data: { name: string; color?: string; icon?: string }) => {
-    await api.createCategory(data, idToken);
+    const created = await api.createCategory(data, idToken);
     showToast(`Catégorie "${data.name}" ajoutée.`);
     await loadData();
+    return created;
   };
 
   const handleDeleteCategory = async (id: number) => {
@@ -191,9 +192,10 @@ function MainApp() {
   };
 
   const handleCreateSource = async (data: { name: string; color?: string }) => {
-    await api.createSource(data, idToken);
+    const created = await api.createSource(data, idToken);
     showToast(`Source "${data.name}" ajoutée.`);
     await loadData();
+    return created;
   };
 
   const handleDeleteSource = async (id: number) => {
@@ -319,6 +321,8 @@ function MainApp() {
         sources={sources}
         onSaveExpense={handleSaveExpense}
         onSaveIncome={handleSaveIncome}
+        onCreateCategory={handleCreateCategory}
+        onCreateSource={handleCreateSource}
         editItem={editingItem}
         defaultType={txModalDefaultType}
       />

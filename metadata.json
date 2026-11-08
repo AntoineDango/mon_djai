@@ -1,0 +1,6 @@
+{
+  "name": "Mon Djai by Antoine DANGO",
+  "description": "Application web de gestion des finances personnelles et suivi budgétaire en FCFA par Antoine DANGO.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
